@@ -17,5 +17,8 @@ contextBridge.exposeInMainWorld('api', {
   // Window movement (JS-based drag for frameless window)
   moveMainWindow: (x, y) => ipcRenderer.send('main-move', x, y),
   // Send mood to pet window
-  sendPetMood: (mood) => ipcRenderer.send('pet-mood', mood)
+  sendPetMood: (mood) => ipcRenderer.send('pet-mood', mood),
+  // Update check
+  checkUpdate: () => ipcRenderer.invoke('check-update'),
+  openExternal: (url) => ipcRenderer.invoke('open-external', url)
 });

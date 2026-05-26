@@ -1086,6 +1086,52 @@ function renderAnalytics() {
 }
 
 // =========================================================
+//  UPDATE CHECK
+// =========================================================
+const updateBtn = document.getElementById('update-btn');
+const updateDot = document.getElementById('update-dot');
+const updateModalOverlay = document.getElementById('update-modal-overlay');
+const updateLatestVer = document.getElementById('update-latest-ver');
+const updateChangelog = document.getElementById('update-changelog');
+const updateCloseBtn = document.getElementById('update-close-btn');
+const updateDownloadBtn = document.getElementById('update-download-btn');
+let updateReleaseUrl = '';
+
+async function checkForUpdate(silent) {
+  try {
+    const info = await window.api.checkUpdate();
+    if (!info || !info.latest) return;
+    const curVer = 'v1.0.2';
+    if (info.latest !== curVer) {
+      updateDot.classList.remove('hidden');
+      updateBtn.title = '有新版本可用！点击查看';
+      if (!silent) {
+        updateLatestVer.textContent = info.latest;
+        updateChangelog.innerHTML = (info.body || '').replace(/\n/g, '<br>');
+        updateReleaseUrl = info.url;
+        updateModalOverlay.classList.remove('hidden');
+      }
+    } else if (!silent) {
+      updateLatestVer.textContent = info.latest;
+      updateChangelog.innerHTML = '已是最新版本';
+      updateReleaseUrl = '';
+      updateModalOverlay.classList.remove('hidden');
+    }
+  } catch(e) { /* silent fail */ }
+}
+
+updateBtn.addEventListener('click', () => checkForUpdate(false));
+updateCloseBtn.addEventListener('click', () => { updateModalOverlay.classList.add('hidden'); });
+updateModalOverlay.addEventListener('click', (e) => { if (e.target === updateModalOverlay) updateModalOverlay.classList.add('hidden'); });
+updateDownloadBtn.addEventListener('click', () => {
+  if (updateReleaseUrl) { window.api.openExternal(updateReleaseUrl); }
+  updateModalOverlay.classList.add('hidden');
+});
+
+// Check on startup (silent)
+setTimeout(() => checkForUpdate(true), 3000);
+
+// =========================================================
 //  UTILS
 // =========================================================
 function escapeHtml(str) {

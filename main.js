@@ -2,7 +2,7 @@ const { app, BrowserWindow, ipcMain, screen, Tray, Menu, nativeImage } = require
 const path = require('path');
 const fs = require('fs');
 
-const DATA_FILE = path.join(__dirname, 'data.json');
+const DATA_FILE = path.join(app.getPath('appData'), 'LuluTimeTracker', 'data.json');
 
 function ensureDirExists() {
   const dir = path.dirname(DATA_FILE);
@@ -234,6 +234,30 @@ function registerIPC() {
     if (petWindow && !petWindow.isDestroyed()) {
       petWindow.webContents.send('mood-change', mood);
     }
+  });
+
+  // Update check — fetch latest release from GitHub
+  const https = require('https');
+  ipcMain.handle('check-update', () => {
+    return new Promise((resolve) => {
+      const opts = { hostname:'api.github.com', path:'/repos/hongyiwang8346/Calendar/releases/latest',
+        headers:{ 'User-Agent':'LuluTimeTracker', Accept:'application/vnd.github+json' } };
+      https.get(opts, (res) => {
+        let data = '';
+        res.on('data', d => data += d);
+        res.on('end', () => {
+          try {
+            const json = JSON.parse(data);
+            resolve({ latest: json.tag_name, url: json.html_url, body: json.body || '' });
+          } catch(e) { resolve(null); }
+        });
+      }).on('error', () => resolve(null));
+    });
+  });
+
+  // Open external URL in browser
+  ipcMain.handle('open-external', (event, url) => {
+    return require('electron').shell.openExternal(url);
   });
 }
 
