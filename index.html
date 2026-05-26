@@ -79,6 +79,7 @@
         <button class="tab-btn" data-tab="memos">📋 备忘清单</button>
         <button class="tab-btn" data-tab="reflection">🌙 每日复盘</button>
         <button class="tab-btn" data-tab="analytics">📊 数据分析</button>
+        <button class="tab-btn" data-tab="recovery">🗄 数据恢复</button>
       </div>
 
       <!-- -------- TAB: Ideas -------- -->
@@ -157,6 +158,22 @@
           </div>
         </div>
       </div>
+
+      <!-- -------- TAB: Recovery -------- -->
+      <div class="tab-content" id="tab-recovery">
+        <div class="tab-inner">
+          <div class="recovery-header-row">
+            <span class="recovery-title">备份快照</span>
+            <span id="recovery-status" class="meta-text"></span>
+          </div>
+          <div class="recovery-actions no-drag">
+            <button id="restore-latest-btn" class="mini-btn primary-mini-btn">恢复最新备份</button>
+          </div>
+          <div class="backups-list" id="backups-list">
+            <div class="empty-state">暂无备份</div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- ========== RIGHT PANEL: Tracker Widget (340px) ========== -->
@@ -181,6 +198,10 @@
           </button>
           <button id="toggle-notes-btn" title="笔记与分析" class="control-btn">
             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17" stroke-linecap="round" stroke-width="3"/></svg>
+          </button>
+          <button id="update-btn" title="检查更新" class="control-btn">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            <span id="update-dot" class="update-dot hidden"></span>
           </button>
           <button id="minimize-btn" title="最小化" class="control-btn">
             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -296,6 +317,23 @@
     </div>
 
   </div>
+
+  <!-- Update Check Modal -->
+  <div class="update-modal-overlay hidden" id="update-modal-overlay">
+    <div class="update-modal-card">
+      <h4>🔄 检查更新</h4>
+      <div class="update-version-row">
+        <span>当前版本: <strong>v1.0.2</strong></span>
+        <span>最新版本: <strong id="update-latest-ver">--</strong></span>
+      </div>
+      <div class="update-body" id="update-changelog"></div>
+      <div class="form-actions">
+        <button id="update-close-btn" class="secondary-btn">关闭</button>
+        <button id="update-download-btn" class="confirm-btn">前往下载</button>
+      </div>
+    </div>
+  </div>
+
   <script src="renderer.js"></script>
 </body>
 </html>

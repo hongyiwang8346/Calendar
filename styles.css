@@ -29,6 +29,9 @@ body{background:transparent;color:var(--text);overflow:hidden;height:100vh;width
   border:1px solid var(--border);box-shadow:var(--shadow);
 }
 
+/* ======================== MAXIMIZED CENTER ======================== */
+.app-container.maximized{justify-content:center;}
+
 /* ======================== SIDE PANELS ======================== */
 .side-panel{
   width:500px;height:100%;display:flex;flex-direction:column;flex-shrink:0;
@@ -213,8 +216,8 @@ body{background:transparent;color:var(--text);overflow:hidden;height:100vh;width
 .tracker-widget.folded .timer-info-row{
   display:flex;flex:1;min-width:0;justify-content:space-between;align-items:center;gap:4px;
 }
-.tracker-widget.folded .timer-interval-range{font-size:9px;color:var(--muted);white-space:nowrap;}
-.tracker-widget.folded .current-time-display{font-size:9px;color:var(--muted);white-space:nowrap;}
+.tracker-widget.folded .timer-interval-range{font-size:7px;color:var(--muted);white-space:nowrap;}
+.tracker-widget.folded .current-time-display{font-size:7px;color:var(--muted);white-space:nowrap;}
 .tracker-widget.folded .primary-btn{padding:10px 14px;font-size:13px;}
 .tracker-widget.folded .pause-btn{padding:10px 14px;font-size:13px;}
 .tracker-widget.folded .stop-btn{padding:10px 14px;font-size:13px;}
@@ -260,7 +263,7 @@ body{background:transparent;color:var(--text);overflow:hidden;height:100vh;width
 }
 .timer-label{font-size:12px;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);font-weight:600;}
 .timer-time{font-size:38px;font-weight:700;font-family:monospace;margin:4px 0;color:var(--text);letter-spacing:1px;}
-.timer-interval-range{font-size:11px;color:var(--muted);text-align:left;}
+.timer-interval-range{font-size:9px;color:var(--muted);text-align:left;}
 .timer-info-row{display:flex;justify-content:space-between;align-items:center;margin-top:6px;padding:0 2px;}
 
 /* Current Time */
@@ -506,3 +509,51 @@ body{background:transparent;color:var(--text);overflow:hidden;height:100vh;width
 .chart-bar-wrapper{flex:1;height:4px;background:rgba(0,0,0,0.05);border-radius:2px;overflow:hidden;}
 .chart-bar-fill{height:100%;border-radius:2px;}
 .chart-bar-value{width:45px;text-align:right;color:var(--muted);}
+
+/* Update Button */
+.update-dot{
+  position:absolute;top:3px;right:3px;width:6px;height:6px;
+  background:#ef4444;border-radius:50%;display:block;
+}
+.update-dot.hidden{display:none;}
+
+/* Update Modal */
+.update-modal-overlay{
+  position:fixed;top:0;left:0;right:0;bottom:0;
+  background:rgba(0,0,0,0.4);backdrop-filter:blur(4px);
+  z-index:200;display:flex;align-items:center;justify-content:center;padding:16px;
+  transition:var(--ease);
+}
+.update-modal-overlay.hidden{display:none;}
+.update-modal-card{
+  background:white;border:1px solid var(--border);border-radius:14px;padding:20px;
+  width:100%;max-width:380px;max-height:80vh;overflow-y:auto;
+  display:flex;flex-direction:column;gap:14px;box-shadow:0 20px 50px rgba(0,0,0,0.2);
+}
+.update-modal-card h4{font-size:16px;font-weight:700;}
+.update-version-row{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);}
+.update-body{font-size:11px;color:var(--text);line-height:1.6;max-height:200px;overflow-y:auto;}
+#update-download-btn[disabled]{opacity:0.4;pointer-events:none;}
+
+/* ======================== DATA RECOVERY ======================== */
+.recovery-header-row{display:flex;justify-content:space-between;align-items:center;}
+.recovery-title{font-size:12px;font-weight:600;color:var(--text);}
+.recovery-actions{display:flex;gap:6px;}
+.backups-list{display:flex;flex-direction:column;gap:6px;flex:1;overflow-y:auto;}
+.backup-item{
+  background:white;border:1px solid var(--border);border-radius:8px;
+  padding:10px 12px;display:flex;align-items:center;justify-content:space-between;
+  transition:var(--ease);
+}
+.backup-item:hover{border-color:rgba(0,0,0,0.15);}
+.backup-item.latest{border-color:rgba(16,185,129,0.3);background:rgba(16,185,129,0.03);}
+.backup-info{display:flex;flex-direction:column;gap:2px;}
+.backup-date{font-size:12px;font-weight:600;color:var(--text);}
+.backup-meta{font-size:10px;color:var(--muted);}
+.backup-restore-btn{
+  background:var(--accent);color:white;border:none;border-radius:5px;
+  padding:5px 12px;font-size:11px;font-weight:600;cursor:pointer;
+  transition:var(--ease);-webkit-app-region:no-drag;
+}
+.backup-restore-btn:hover{background:#4f46e5;}
+#restore-latest-btn[disabled]{opacity:0.4;pointer-events:none;}

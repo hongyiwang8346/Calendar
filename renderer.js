@@ -215,12 +215,15 @@ maximizeBtn.addEventListener('click', () => {
 
 window.api.onMaximizeChange((isMax) => {
   isMaximized = isMax;
+  var ac = document.getElementById('app-container');
   if (isMax) {
     maximizeBtn.title = '还原';
     maximizeIcon.innerHTML = '<rect x="5" y="9" width="14" height="10" rx="2"/><rect x="9" y="5" width="14" height="10" rx="2"/>';
+    if (ac) ac.classList.add('maximized');
   } else {
     maximizeBtn.title = '最大化';
     maximizeIcon.innerHTML = '<rect x="4" y="4" width="16" height="16" rx="2"/>';
+    if (ac) ac.classList.remove('maximized');
     setWindowLayout();
   }
 });
@@ -242,8 +245,8 @@ function applyZoom(factor) {
 function syncWindowSize() {
   if (isMaximized) return;
   resizingFromCode = true;
-  const baseW = activePanel ? 840 : 340;
-  const baseH = (!isFolded || activePanel) ? 620 : 140;
+  const baseW = activePanel ? 860 : 360;
+  const baseH = (!isFolded || activePanel) ? 520 : 155;
   const w = Math.round(baseW * zoomLevel);
   const h = Math.round(baseH * zoomLevel);
   window.api.setWindowSize(w, h);
@@ -254,7 +257,7 @@ window.addEventListener('resize', () => {
   if (resizingFromCode || isMaximized) return;
   clearTimeout(resizeDebounce);
   resizeDebounce = setTimeout(() => {
-    const baseW = activePanel ? 840 : 340;
+    const baseW = activePanel ? 860 : 360;
     const newZoom = Math.round(window.outerWidth / baseW * 100) / 100;
     const clamped = Math.max(0.5, Math.min(3.0, newZoom));
     if (Math.abs(clamped - zoomLevel) > 0.02) {
@@ -320,6 +323,7 @@ function renderNotesTab() {
   else if (activeTab === 'memos') renderMemos();
   else if (activeTab === 'reflection') renderReflection();
   else if (activeTab === 'analytics') renderAnalytics();
+  else if (activeTab === 'recovery') renderRecovery();
 }
 
 // =========================================================
@@ -503,6 +507,9 @@ async function loadData() {
   if (!appData.memos) appData.memos = [];
   if (!appData.reflections) appData.reflections = {};
 
+  var wasRestored = false;
+  if (d && d._restored) { wasRestored = true; delete appData._restored; }
+
   // Migrate old currentIntervalStart → new timerState
   if (d && d.currentIntervalStart && !d.timerState) {
     appData.timerState = 'running';
@@ -542,6 +549,15 @@ async function loadData() {
   // Sync always-on-top initial state
   const isAot = await window.api.isAlwaysOnTop?.();
   if (isAot !== undefined) alwaysOnTopBtn.classList.toggle('active', isAot);
+
+  if (wasRestored) {
+    var el = document.getElementById('recovery-status');
+    if (el) {
+      el.textContent = '数据已从备份恢复';
+      el.style.color = '#f59e0b';
+      setTimeout(function() { el.style.color = ''; }, 8000);
+    }
+  }
 }
 
 async function saveData() {
@@ -1084,6 +1100,107 @@ function renderAnalytics() {
     analyticsOutput.appendChild(card3);
   }
 }
+
+// =========================================================
+//  DATA RECOVERY
+// =========================================================
+var restoreLatestBtn = document.getElementById('restore-latest-btn');
+var backupsListCont = document.getElementById('backups-list');
+
+async function renderRecovery() {
+  var backups = await window.api.listBackups();
+  if (!backups || !backups.length) {
+    if (backupsListCont) backupsListCont.innerHTML = '<div class="empty-state">暂无备份</div>';
+    if (restoreLatestBtn) restoreLatestBtn.disabled = true;
+    return;
+  }
+  if (restoreLatestBtn) restoreLatestBtn.disabled = false;
+  if (!backupsListCont) return;
+
+  backupsListCont.innerHTML = '';
+  backups.forEach(function(b, i) {
+    var mtime = new Date(b.mtime);
+    var ts = mtime.getFullYear() + '-' + String(mtime.getMonth()+1).padStart(2,'0') + '-' + String(mtime.getDate()).padStart(2,'0') + ' ' + String(mtime.getHours()).padStart(2,'0') + ':' + String(mtime.getMinutes()).padStart(2,'0');
+    var item = document.createElement('div');
+    item.className = 'backup-item' + (i === 0 ? ' latest' : '');
+    item.innerHTML = '<div class="backup-info"><span class="backup-date">' + ts + '</span><span class="backup-meta">' + b.records + ' 条记录 &middot; ' + Math.round(b.size/1024) + 'KB</span></div><button class="backup-restore-btn" data-file="' + b.file + '">恢复</button>';
+    item.querySelector('.backup-restore-btn').addEventListener('click', function() { doRestore(b.file); });
+    backupsListCont.appendChild(item);
+  });
+}
+
+async function doRestore(filename) {
+  var result = await window.api.restoreBackup(filename);
+  var el = document.getElementById('recovery-status');
+  if (!el) return;
+  if (result && result.success) {
+    el.textContent = '恢复成功，正在重新加载...';
+    el.style.color = 'var(--c-learn)';
+    setTimeout(function() {
+      loadData().then(function() {
+        updateTrackerView();
+        renderRecovery();
+        el.style.color = '';
+      });
+    }, 300);
+  } else {
+    el.textContent = '恢复失败：' + (result ? result.error : '未知错误');
+    el.style.color = '#ef4444';
+  }
+}
+
+if (restoreLatestBtn) {
+  restoreLatestBtn.addEventListener('click', async function() {
+    var backups = await window.api.listBackups();
+    if (backups && backups.length > 0) doRestore(backups[0].file);
+  });
+}
+
+// =========================================================
+//  UPDATE CHECK
+// =========================================================
+const updateBtn = document.getElementById('update-btn');
+const updateDot = document.getElementById('update-dot');
+const updateModalOverlay = document.getElementById('update-modal-overlay');
+const updateLatestVer = document.getElementById('update-latest-ver');
+const updateChangelog = document.getElementById('update-changelog');
+const updateCloseBtn = document.getElementById('update-close-btn');
+const updateDownloadBtn = document.getElementById('update-download-btn');
+let updateReleaseUrl = '';
+
+async function checkForUpdate(silent) {
+  try {
+    const info = await window.api.checkUpdate();
+    if (!info || !info.latest) return;
+    const curVer = 'v1.0.2';
+    if (info.latest !== curVer) {
+      updateDot.classList.remove('hidden');
+      updateBtn.title = '有新版本可用！点击查看';
+      if (!silent) {
+        updateLatestVer.textContent = info.latest;
+        updateChangelog.innerHTML = (info.body || '').replace(/\n/g, '<br>');
+        updateReleaseUrl = info.url;
+        updateModalOverlay.classList.remove('hidden');
+      }
+    } else if (!silent) {
+      updateLatestVer.textContent = info.latest;
+      updateChangelog.innerHTML = '已是最新版本';
+      updateReleaseUrl = '';
+      updateModalOverlay.classList.remove('hidden');
+    }
+  } catch(e) { /* silent fail */ }
+}
+
+updateBtn.addEventListener('click', () => checkForUpdate(false));
+updateCloseBtn.addEventListener('click', () => { updateModalOverlay.classList.add('hidden'); });
+updateModalOverlay.addEventListener('click', (e) => { if (e.target === updateModalOverlay) updateModalOverlay.classList.add('hidden'); });
+updateDownloadBtn.addEventListener('click', () => {
+  if (updateReleaseUrl) { window.api.openExternal(updateReleaseUrl); }
+  updateModalOverlay.classList.add('hidden');
+});
+
+// Check on startup (silent)
+setTimeout(() => checkForUpdate(true), 3000);
 
 // =========================================================
 //  UTILS

@@ -3,10 +3,29 @@ const path = require('path');
 const fs = require('fs');
 
 const DATA_FILE = path.join(__dirname, 'data.json');
+const BACKUP_DIR = path.join(__dirname, 'backups');
+const MAX_BACKUPS = 10;
 
 function ensureDirExists() {
   const dir = path.dirname(DATA_FILE);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR, { recursive: true });
+}
+
+function backupCurrentData() {
+  if (!fs.existsSync(DATA_FILE)) return;
+  try {
+    var stat = fs.statSync(DATA_FILE);
+    if (stat.size === 0) return;
+    var now = new Date();
+    var ts = now.getFullYear() + '' + String(now.getMonth()+1).padStart(2,'0') + String(now.getDate()).padStart(2,'0') + '_' + String(now.getHours()).padStart(2,'0') + String(now.getMinutes()).padStart(2,'0') + String(now.getSeconds()).padStart(2,'0');
+    var dest = path.join(BACKUP_DIR, 'data.' + ts + '.json');
+    fs.copyFileSync(DATA_FILE, dest);
+    var files = fs.readdirSync(BACKUP_DIR).filter(function(f) { return f.indexOf('data.') === 0 && f.indexOf('.json') > -1; }).sort();
+    while (files.length > MAX_BACKUPS) {
+      fs.unlinkSync(path.join(BACKUP_DIR, files.shift()));
+    }
+  } catch(e) { console.error('backup error:', e); }
 }
 
 function clampToScreen(x, y, w, h) {
@@ -28,8 +47,8 @@ function createMainWindow() {
   const { width: sw, height: sh } = screen.getPrimaryDisplay().workArea;
 
   mainWindow = new BrowserWindow({
-    width: 340, height: 140,
-    x: sw - 340 - 20,
+    width: 400, height: 140,
+    x: sw - 400 - 20,
     y: sh - 140 - 20,
     frame: false,
     transparent: true,
@@ -138,19 +157,67 @@ function createTray() {
 // ── IPC Handlers ─────────────────────────────────────────────
 function registerIPC() {
   // Data persistence
-  ipcMain.handle('load-data', () => {
+  ipcMain.handle('load-data', function() {
     try {
-      if (fs.existsSync(DATA_FILE)) return JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
-    } catch(e) { console.error('load error:', e); }
+      if (fs.existsSync(DATA_FILE)) {
+        var raw = fs.readFileSync(DATA_FILE, 'utf-8');
+        if (raw.trim()) return JSON.parse(raw);
+      }
+    } catch(loadErr) { console.error('load error:', loadErr); }
+
+    try {
+      if (fs.existsSync(BACKUP_DIR)) {
+        var bkFiles = fs.readdirSync(BACKUP_DIR).filter(function(f) { return f.indexOf('data.') === 0 && f.indexOf('.json') > -1 && f.indexOf('pre_restore') === -1; }).sort().reverse();
+        if (bkFiles.length > 0) {
+          var src = path.join(BACKUP_DIR, bkFiles[0]);
+          fs.copyFileSync(src, DATA_FILE);
+          var recovered = JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
+          recovered._restored = true;
+          return recovered;
+        }
+      }
+    } catch(recErr) { console.error('recovery error:', recErr); }
+
     return { logs:[], schedules:{}, ideas:[], memos:[], reflections:{} };
   });
 
-  ipcMain.handle('save-data', (event, data) => {
+  ipcMain.handle('save-data', function(event, data) {
     try {
       ensureDirExists();
+      backupCurrentData();
       fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf-8');
       return true;
-    } catch(e) { console.error('save error:', e); return false; }
+    } catch(saveErr) { console.error('save error:', saveErr); return false; }
+  });
+
+  ipcMain.handle('list-backups', function() {
+    try {
+      if (!fs.existsSync(BACKUP_DIR)) return [];
+      return fs.readdirSync(BACKUP_DIR)
+        .filter(function(f) { return f.indexOf('data.') === 0 && f.indexOf('.json') > -1 && f.indexOf('pre_restore') === -1; })
+        .sort().reverse()
+        .map(function(f) {
+          var fp = path.join(BACKUP_DIR, f);
+          var st = fs.statSync(fp);
+          var n = 0;
+          try { var d = JSON.parse(fs.readFileSync(fp, 'utf-8')); n = (d.logs || []).length; } catch(e2) {}
+          return { file: f, size: st.size, mtime: st.mtime.toISOString(), records: n };
+        });
+    } catch(lbErr) { console.error('list-backups error:', lbErr); return []; }
+  });
+
+  ipcMain.handle('restore-backup', function(event, filename) {
+    try {
+      var src = path.join(BACKUP_DIR, filename);
+      if (!fs.existsSync(src)) return { success: false, error: 'file not found' };
+      if (fs.existsSync(DATA_FILE)) {
+        var now = new Date();
+        var ts = now.getFullYear()+''+(now.getMonth()+1+'').padStart(2,'0')+(now.getDate()+'').padStart(2,'0')+'_'+(''+now.getHours()).padStart(2,'0')+(''+now.getMinutes()).padStart(2,'0')+(''+now.getSeconds()).padStart(2,'0');
+        fs.copyFileSync(DATA_FILE, path.join(BACKUP_DIR, 'data.pre_restore_'+ts+'.json'));
+      }
+      fs.copyFileSync(src, DATA_FILE);
+      return { success: true };
+    } catch(rbErr) { return { success: false, error: rbErr.message }; }
   });
 
   // Window controls
@@ -186,7 +253,7 @@ function registerIPC() {
       savedBounds = null;
     } else {
       const { width: sw, height: sh } = screen.getPrimaryDisplay().workArea;
-      bounds = { x: sw - 340 - 20, y: sh - 140 - 20, width: 340, height: 140 };
+      bounds = { x: sw - 400 - 20, y: sh - 140 - 20, width: 400, height: 140 };
     }
     const clamped = clampToScreen(bounds.x, bounds.y, bounds.width, bounds.height);
     mainWindow.setBounds({ x: clamped.x, y: clamped.y, width: bounds.width, height: bounds.height });
@@ -234,6 +301,30 @@ function registerIPC() {
     if (petWindow && !petWindow.isDestroyed()) {
       petWindow.webContents.send('mood-change', mood);
     }
+  });
+
+  // Update check — fetch latest release from GitHub
+  const https = require('https');
+  ipcMain.handle('check-update', () => {
+    return new Promise((resolve) => {
+      const opts = { hostname:'api.github.com', path:'/repos/hongyiwang8346/Calendar/releases/latest',
+        headers:{ 'User-Agent':'LuluTimeTracker', Accept:'application/vnd.github+json' } };
+      https.get(opts, (res) => {
+        let data = '';
+        res.on('data', d => data += d);
+        res.on('end', () => {
+          try {
+            const json = JSON.parse(data);
+            resolve({ latest: json.tag_name, url: json.html_url, body: json.body || '' });
+          } catch(e) { resolve(null); }
+        });
+      }).on('error', () => resolve(null));
+    });
+  });
+
+  // Open external URL in browser
+  ipcMain.handle('open-external', (event, url) => {
+    return require('electron').shell.openExternal(url);
   });
 }
 
