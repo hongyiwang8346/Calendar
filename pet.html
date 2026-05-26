@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>噜噜</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; user-select:none; }
+body {
+  background: transparent;
+  overflow: hidden;
+  width: 160px;
+  height: 220px;
+  /* No webkit-app-region here — drag handled via JS */
+}
+
+#pet-wrapper {
+  width: 160px;
+  height: 220px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  cursor: grab;
+}
+#pet-wrapper.dragging { cursor: grabbing; }
+
+/* ── Speech Bubble (compact) ─────────────────────────────── */
+#speech-bubble {
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #fffdf7;
+  border: 1.5px solid #f5a623;
+  border-radius: 12px;
+  padding: 5px 9px;
+  font-family: 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  color: #444;
+  white-space: nowrap;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.10);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.35s ease, transform 0.35s ease;
+  transform: translateX(-50%) translateY(-4px);
+  z-index: 20;
+}
+#speech-bubble.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0px);
+}
+/* Tail */
+#speech-bubble::after {
+  content: '';
+  position: absolute;
+  bottom: -7px;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 4px solid transparent;
+  border-top-color: #f5a623;
+}
+#speech-bubble::before {
+  content: '';
+  position: absolute;
+  bottom: -5px;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 4px solid transparent;
+  border-top-color: #fffdf7;
+  z-index: 1;
+}
+
+/* ── Lulu Canvas ─────────────────────────────────────────── */
+#lulu-canvas {
+  width: 140px;
+  height: 140px;
+  display: block;
+  cursor: grab;
+  filter: drop-shadow(0 6px 14px rgba(0,0,0,0.18));
+  margin-bottom: 8px;
+  flex-shrink: 0;
+  transition: transform 0.12s ease;
+}
+#lulu-canvas:hover { transform: scale(1.04); }
+
+/* ── Mood tag ─────────────────────────────────────────────── */
+#mood-label {
+  position: absolute;
+  bottom: 4px;
+  right: 6px;
+  font-size: 9px;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(245,166,35,0.88);
+  border-radius: 6px;
+  padding: 2px 6px;
+  pointer-events: none;
+  letter-spacing: 0.3px;
+  backdrop-filter: blur(4px);
+}
+
+/* ── Right-click context menu ────────────────────────────── */
+#ctx-menu {
+  position: fixed;
+  background: white;
+  border: 1px solid rgba(0,0,0,0.1);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.14);
+  padding: 5px;
+  z-index: 1000;
+  display: none;
+  min-width: 130px;
+  font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+#ctx-menu.open { display: block; }
+.ctx-item {
+  padding: 7px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #333;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  transition: background 0.15s;
+}
+.ctx-item:hover { background: #f1f5f9; }
+.ctx-item.danger { color: #ef4444; }
+.ctx-item.danger:hover { background: #fee2e2; }
+.ctx-sep { height: 1px; background: #f1f5f9; margin: 4px 0; }
+
+/* ── Animations ──────────────────────────────────────────── */
+@keyframes gentle-bob {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-5px); }
+}
+.bobbing { animation: gentle-bob 2.2s ease-in-out infinite; }
+
+@keyframes pop {
+  0%   { transform: scale(1) rotate(0deg); }
+  30%  { transform: scale(1.18) rotate(-6deg); }
+  60%  { transform: scale(0.92) rotate(4deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+.popping { animation: pop 0.38s ease forwards !important; }
+</style>
+</head>
+<body>
+<div id="pet-wrapper">
+  <div id="speech-bubble"></div>
+  <canvas id="lulu-canvas" width="280" height="280"></canvas>
+  <div id="mood-label">待机中</div>
+</div>
+
+<!-- Right-click context menu -->
+<div id="ctx-menu">
+  <div class="ctx-item" id="ctx-top">📌 <span id="ctx-top-text">取消置顶</span></div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item danger" id="ctx-hide">👋 暂时隐藏噜噜</div>
+</div>
+
+<script>
+const canvas  = document.getElementById('lulu-canvas');
+const ctx     = canvas.getContext('2d');
+const bubble  = document.getElementById('speech-bubble');
+const moodLbl = document.getElementById('mood-label');
+const wrapper = document.getElementById('pet-wrapper');
+const ctxMenu = document.getElementById('ctx-menu');
+
+// ── Mood config ───────────────────────────────────────────
+const MOODS = {
+  idle:    { file:'lulu/桌面图.jpg',   label:'待机中',   bob:true  },
+  study:   { file:'lulu/学习.jpg',      label:'学习中',   bob:false },
+  energy:  { file:'lulu/充满干劲.jpg',  label:'元气满满', bob:true  },
+  sleepy:  { file:'lulu/困困.jpg',      label:'困困中…', bob:false },
+  working: { file:'lulu/完成任务.jpg',  label:'摸鱼中',   bob:false },
+};
+
+const QUOTES = {
+  idle:    ['今天也要加油哦 🍊','记得喝水！','噜噜在默默守护你 🌟','伸个懒腰吧~','休息一下眼睛~'],
+  study:   ['📚 学习中，加油！','坚持！你最棒！','知识就是力量 💪','这道题一定能解开！','别摸鱼，快学！'],
+  energy:  ['🔥 今天状态超好！','满血！无所不能！','冲冲冲！今天必完成！','噜噜为你加油 ⚡'],
+  sleepy:  ['困了就休息吧… 😴','闭眼20分钟，效率翻倍','噜噜也困了… zzz','人是铁，睡是钢~'],
+  working: ['🎉 任务完成！棒棒哒！','工作中的你最帅！','每完成一件事都是进步！'],
+};
+
+const CLICK_LINES = [
+  '哎呀别戳我啦 🥺','嗷~！','再点我要生气了 😤','噜噜受到1点伤害…',
+  '快去学习！别戳我！📚','被你发现了，我在摸鱼 🐟','嘻嘻，好玩吧~','你好无聊哦~',
+];
+
+let currentMood = 'idle';
+let clickCount  = 0;
+let bubbleTimer = null;
+let autoTimer   = null;
+let alwaysOnTop = true; // starts as always on top
+
+// ── Background removal ────────────────────────────────────
+function removeBackground(imgEl) {
+  canvas.width  = 280;
+  canvas.height = 280;
+  ctx.clearRect(0, 0, 280, 280);
+
+  const iw = imgEl.naturalWidth, ih = imgEl.naturalHeight;
+  // Crop to square, slightly bias toward top (character is usually top-center)
+  let sx=0, sy=0, sw=iw, sh=ih;
+  if (iw > ih) { sx=(iw-ih)/2; sw=ih; }
+  else          { sy=ih*0.05;  sh=iw; if(sy+sh>ih)sh=ih-sy; }
+
+  ctx.drawImage(imgEl, sx, sy, sw, sh, 0, 0, 280, 280);
+
+  const img = ctx.getImageData(0, 0, 280, 280);
+  const d   = img.data;
+
+  for (let i = 0; i < d.length; i += 4) {
+    const r=d[i], g=d[i+1], b=d[i+2];
+    const bright=(r+g+b)/3;
+    const sat=Math.max(r,g,b)-Math.min(r,g,b);
+
+    // Pure white / near-white background (桌面图.jpg)
+    if (bright > 215 && sat < 25) { d[i+3]=0; continue; }
+    // Soft edge for near-white
+    if (bright > 195 && sat < 20) { d[i+3]=Math.round((bright-195)*4); continue; }
+
+    // Edge fade for all images (removes ragged borders)
+    const col = (i/4) % 280;
+    const row = Math.floor((i/4) / 280);
+    const edge = Math.min(col, row, 279-col, 279-row);
+    if (edge < 6) d[i+3] = Math.round(d[i+3] * (edge / 6));
+  }
+  ctx.putImageData(img, 0, 0);
+}
+
+// ── Load mood image ───────────────────────────────────────
+function loadMood(mood) {
+  const cfg = MOODS[mood] || MOODS.idle;
+  moodLbl.textContent = cfg.label;
+  canvas.classList.toggle('bobbing', cfg.bob);
+
+  const img = new Image();
+  img.onload = () => removeBackground(img);
+  img.onerror = () => console.warn('Image load failed:', cfg.file);
+  img.src = cfg.file;
+}
+
+// ── Speech bubble ─────────────────────────────────────────
+function showBubble(text, ms=3000) {
+  clearTimeout(bubbleTimer);
+  bubble.textContent = text;
+  bubble.classList.add('visible');
+  bubbleTimer = setTimeout(() => bubble.classList.remove('visible'), ms);
+}
+
+function randomLine() {
+  const pool = QUOTES[currentMood] || QUOTES.idle;
+  return pool[Math.floor(Math.random()*pool.length)];
+}
+
+function startAutoQuote() {
+  clearInterval(autoTimer);
+  setTimeout(() => {
+    showBubble(randomLine());
+    autoTimer = setInterval(() => showBubble(randomLine()), 14000);
+  }, 2500);
+}
+
+// ── Click (left) ──────────────────────────────────────────
+canvas.addEventListener('click', (e) => {
+  e.stopPropagation();
+  canvas.classList.remove('popping');
+  void canvas.offsetWidth;
+  canvas.classList.add('popping');
+  canvas.addEventListener('animationend', () => canvas.classList.remove('popping'), {once:true});
+  showBubble(CLICK_LINES[clickCount++ % CLICK_LINES.length], 2200);
+});
+
+// ── Right-click (context menu) ────────────────────────────
+document.addEventListener('contextmenu', (e) => {
+  e.preventDefault();
+  ctxMenu.style.left = e.clientX + 'px';
+  ctxMenu.style.top  = e.clientY + 'px';
+  ctxMenu.classList.add('open');
+});
+document.addEventListener('click', () => ctxMenu.classList.remove('open'));
+
+document.getElementById('ctx-hide').addEventListener('click', () => {
+  ctxMenu.classList.remove('open');
+  window.petApi.hide();
+});
+
+document.getElementById('ctx-top').addEventListener('click', () => {
+  alwaysOnTop = !alwaysOnTop;
+  document.getElementById('ctx-top-text').textContent = alwaysOnTop ? '取消置顶' : '设为置顶';
+  ctxMenu.classList.remove('open');
+  window.petApi.toggleAlwaysOnTop();
+});
+
+// ── Drag (JS-based, works on transparent Electron windows) ──
+let dragging = false;
+let dragOffX = 0, dragOffY = 0;
+
+wrapper.addEventListener('mousedown', (e) => {
+  // Only left button, not on canvas click targets
+  if (e.button !== 0) return;
+  dragging = true;
+  dragOffX = e.screenX - window.screenX;
+  dragOffY = e.screenY - window.screenY;
+  wrapper.classList.add('dragging');
+  e.preventDefault();
+});
+
+document.addEventListener('mousemove', (e) => {
+  if (!dragging) return;
+  const newX = e.screenX - dragOffX;
+  const newY = e.screenY - dragOffY;
+  window.petApi.moveWindow(newX, newY);
+});
+
+document.addEventListener('mouseup', () => {
+  dragging = false;
+  wrapper.classList.remove('dragging');
+});
+
+// ── Mood from tracker ─────────────────────────────────────
+window.petApi.onMoodChange((mood) => {
+  if (mood !== currentMood && MOODS[mood]) {
+    currentMood = mood;
+    loadMood(mood);
+    const greet = {
+      study:   '📚 学习模式，噜噜陪你！',
+      energy:  '🔥 元气满满，冲冲冲！',
+      sleepy:  '困了就休息一下嘛…',
+      working: '💼 工作模式开启！',
+      idle:    '嗨~ 又见面啦 🍊',
+    };
+    showBubble(greet[mood] || randomLine(), 3000);
+  }
+});
+
+// ── Init ──────────────────────────────────────────────────
+loadMood('idle');
+startAutoQuote();
+</script>
+</body>
+</html>
