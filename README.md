@@ -27,10 +27,17 @@
 - **每日复盘**：写日记式总结，自动展示当日时间分布
 - **数据分析**：按周/月/自定义范围查看时间统计和 Top 活动
 
+### 💾 数据备份与恢复
+- **自动备份**：每次保存数据时自动在 `backups/` 目录创建快照（最多保留 10 份，滚动清理）
+- **自动恢复**：若 `data.json` 丢失或损坏，启动时自动从最新备份还原
+- **手动恢复**：笔记面板 → 🗄 数据恢复标签页，查看所有备份、选择恢复
+- **恢复保护**：执行恢复前自动备份当前数据（文件名带 `pre_restore_` 前缀）
+
 ### 🎨 视觉体验
 - 毛玻璃拟态 UI（backdrop-filter）
-- 窗口大小与 UI 自动同步缩放
-- 支持折叠/展开双形态
+- 窗口尺寸智能适配：折叠态(360×155) / 展开态(360×520) / 面板打开(860×520)
+- 缩放调节（0.5x ~ 3.0x），窗口自动跟随
+- 全屏/最大化时 UI 居中显示
 - 无边框透明窗口，可拖拽
 
 ## 项目结构
@@ -39,22 +46,31 @@
 calendar/
 ├── main.js                 # Electron 主进程
 ├── preload.js              # 主窗口预加载桥接
-├── index.html              # 主窗口 HTML
 ├── renderer.js             # 主窗口渲染逻辑
+├── index.html              # 主窗口 HTML
 ├── styles.css              # 全局样式表
 ├── pet.html                # 噜噜精灵窗口 HTML
 ├── pet-preload.js          # 精灵窗口预加载桥接
+├── package.json            # 项目配置 (v1.1.0)
+├── lulu.ico                # 桌面快捷方式图标
+├── launcher.vbs            # 静默启动脚本（无命令行窗口）
+├── start.bat               # 开发启动脚本
+├── Setup.cmd               # 安装器入口
+├── installer.ps1           # 安装程序 GUI
+├── uninstall.bat           # 卸载脚本
+├── sync-build.ps1          # 构建打包脚本
 ├── data.json               # 用户数据持久化
+├── backups/                # 数据备份目录（最多 10 份）
 ├── lulu/                   # 噜噜表情图片
 │   ├── idle.jpg            # 待机中
 │   ├── study.jpg           # 学习中
 │   ├── energy.jpg          # 元气满满
 │   ├── sleepy.jpg          # 困困中
 │   └── complete.jpg        # 任务完成
-├── package.json            # 项目配置
-├── start.bat               # 开发启动脚本
-├── create-shortcut.ps1     # 桌面快捷方式生成
-└── build/                  # 打包输出目录
+├── build/                  # 构建输出目录
+│   ├── Lulu-Time-Tracker/  # 可分发目录
+│   └── LuluTimeTracker-v*.zip  # 压缩安装包
+└── node_modules/           # 依赖（含 Electron）
 ```
 
 ## 快速开始
@@ -73,24 +89,37 @@ npm install
 # 启动应用
 npm start
 
-# 或直接运行
+# 或双击运行
 start.bat
+
+# 或静默启动（无命令行窗口）
+launcher.vbs
 ```
+
+### 安装部署
+
+1. 下载 `build/LuluTimeTracker-v1.1.0.zip` 解压
+2. 双击 `Setup.cmd` 启动安装器
+3. 选择安装目录（默认 `%LocalAppData%\LuluTimeTracker`）
+4. 点击 Install 完成安装
+5. 桌面出现噜噜图标快捷方式，双击即可使用
 
 ### 构建安装包
 
-由于 electron-builder 需要额外安装，当前采用手动构建方式：
+```powershell
+# 同步源码到 build 目录并打包 zip
+.\sync-build.ps1
 
-1. 确保 `node_modules/electron/dist/` 存在
-2. 运行 `create-shortcut.ps1` 生成桌面快捷方式
-3. `build/` 目录下为便携版（可直接运行 `噜噜时间追踪.exe`）
+# 跳过 zip 打包（仅同步文件）
+.\sync-build.ps1 -NoZip
+```
 
 ## 使用说明
 
 ### 计时流程
 
 ```
-[▶ 开始计时] → 选择任务类型 → 计时开始
+[▶ 开始计时] → 选择任务类型 + 填写描述 → 计时开始
     ├─ [⏸ 暂停] → 计时暂停
     │   └─ [▶ 继续] → 恢复计时
     └─ [⏹ 结束] → 填写活动详情 → 保存记录
@@ -105,8 +134,9 @@ start.bat
 | A⁻ A A⁺ | 缩放调节（0.5x ~ 3.0x） |
 | 📅 | 打开日历与计划面板 |
 | ❓ | 打开笔记与分析面板 |
+| 🔄 | 检查更新 |
 | — | 最小化到任务栏 |
-| □ | 最大化/还原 |
+| □ | 最大化/还原（全屏时 UI 居中） |
 | ✕ | 关闭 |
 
 ### 噜噜精灵操作
@@ -115,18 +145,36 @@ start.bat
 - **右键点击**：显示菜单（切换置顶 / 隐藏）
 - **拖拽**：按住任意位置拖动到想要的位置
 
+### 数据恢复
+
+1. 打开笔记面板 → 点击 🗄 **数据恢复** 标签页
+2. 查看备份列表（时间 + 记录条数 + 文件大小）
+3. 点击 **[恢复]** 按钮选择特定备份，或点击 **[恢复最新备份]** 使用最新一份
+4. 恢复前自动备份当前 `data.json`（防止误操作）
+
 ## 数据存储
 
-所有数据保存在 `data.json` 中，包括：
+所有数据保存在 `data.json`（项目根目录）中：
 
-- `logs`：时间追踪记录
-- `schedules`：每日计划
-- `ideas`：灵感记录
-- `memos`：备忘清单
-- `reflections`：每日复盘
-- `timerState`：计时器状态
+| 字段 | 说明 |
+|------|------|
+| `logs` | 时间追踪记录 |
+| `schedules` | 每日计划 |
+| `ideas` | 灵感记录 |
+| `memos` | 备忘清单 |
+| `reflections` | 每日复盘 |
+| `timerState` | 计时器状态 |
 
-建议定期备份此文件。
+备份保存在 `backups/` 目录，格式为 `data.YYYYMMDD_HHmmss.json`。
+
+## 卸载
+
+```batch
+# 运行卸载脚本
+uninstall.bat
+```
+
+卸载将清理：桌面快捷方式、`backups/` 备份目录、安装目录自身。
 
 ## License
 
