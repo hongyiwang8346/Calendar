@@ -1,0 +1,12 @@
+{
+  "name": "desktop-calendar-tracker",
+  "version": "1.0.0",
+  "description": "An elegant glassmorphic desktop time tracker and calendar planner widget.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^30.0.0"
+  }
+}

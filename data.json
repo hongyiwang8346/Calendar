@@ -1,0 +1,152 @@
+{
+  "logs": [
+    {
+      "id": "1779632923915",
+      "date": "2026-05-24",
+      "startTime": "22:00",
+      "endTime": "22:28",
+      "description": "做挂件",
+      "category": "life",
+      "durationMinutes": 28
+    },
+    {
+      "id": "1779635165365",
+      "date": "2026-05-24",
+      "startTime": "22:28",
+      "endTime": "23:06",
+      "description": "准备cj复习的studio音频",
+      "category": "learning",
+      "durationMinutes": 37
+    },
+    {
+      "id": "1779636689227",
+      "date": "2026-05-24",
+      "startTime": "23:06",
+      "endTime": "23:31",
+      "description": "等待录音生成+优化软科+手机唠嗑",
+      "category": "life",
+      "durationMinutes": 25
+    },
+    {
+      "id": "1779680175291",
+      "date": "2026-05-25",
+      "startTime": "23:31",
+      "endTime": "11:36",
+      "description": "苦命上班",
+      "category": "work",
+      "durationMinutes": 725
+    },
+    {
+      "id": "1779692658827",
+      "date": "2026-05-25",
+      "startTime": "11:36",
+      "endTime": "15:04",
+      "description": "整理破快递",
+      "category": "work",
+      "durationMinutes": 208
+    },
+    {
+      "id": "1779694273038",
+      "date": "2026-05-25",
+      "startTime": "15:04",
+      "endTime": "15:31",
+      "description": "改进小挂件噜噜",
+      "category": "work",
+      "durationMinutes": 27
+    },
+    {
+      "id": "1779694308500",
+      "date": "2026-05-25",
+      "startTime": "15:31",
+      "endTime": "15:31",
+      "description": "摸鱼",
+      "category": "entertainment",
+      "durationMinutes": 1
+    },
+    {
+      "id": "1779694332486",
+      "date": "2026-05-25",
+      "startTime": "15:31",
+      "endTime": "15:32",
+      "description": "喝水喝水",
+      "category": "life",
+      "durationMinutes": 1
+    },
+    {
+      "id": "1779694929446",
+      "date": "2026-05-25",
+      "startTime": "15:32",
+      "endTime": "15:42",
+      "description": "更新日报",
+      "category": "work",
+      "durationMinutes": 10
+    },
+    {
+      "id": "1779695478914",
+      "date": "2026-05-25",
+      "startTime": "15:42",
+      "endTime": "15:51",
+      "description": "我要去厕所摸鱼",
+      "category": "life",
+      "durationMinutes": 9
+    },
+    {
+      "id": "1779767403436",
+      "date": "2026-05-26",
+      "startTime": "15:51",
+      "endTime": "11:50",
+      "description": "1",
+      "category": "learning",
+      "durationMinutes": 1199
+    },
+    {
+      "id": "1779770432321",
+      "date": "2026-05-26",
+      "startTime": "11:50",
+      "endTime": "12:40",
+      "description": "改噜噜",
+      "category": "learning",
+      "durationMinutes": 50
+    },
+    {
+      "id": "1779775479285",
+      "date": "2026-05-26",
+      "startTime": "14:04",
+      "endTime": "14:04",
+      "description": "111",
+      "category": "learning",
+      "durationMinutes": 1
+    },
+    {
+      "id": "1779778088045",
+      "date": "2026-05-26",
+      "startTime": "14:00",
+      "endTime": "14:47",
+      "description": "编程",
+      "category": "learning",
+      "durationMinutes": 47
+    },
+    {
+      "id": "1779778809927",
+      "date": "2026-05-26",
+      "startTime": "14:48",
+      "endTime": "14:59",
+      "description": "娱乐",
+      "category": "entertainment",
+      "durationMinutes": 11
+    }
+  ],
+  "schedules": {
+    "2026-05-26": []
+  },
+  "ideas": [],
+  "memos": [],
+  "reflections": {},
+  "timerState": "idle",
+  "timerStartTime": null,
+  "timerSessionStart": null,
+  "timerElapsedMs": 0,
+  "timerCategory": null,
+  "timerDescription": "",
+  "zoomLevel": 1.3
+}

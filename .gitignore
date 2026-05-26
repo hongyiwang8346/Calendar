@@ -1,0 +1,6 @@
+node_modules/
+build/
+*.lnk
+app.ico
+launcher.vbs
+桌面时间追踪挂件.lnk
